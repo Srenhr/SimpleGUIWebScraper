@@ -1,13 +1,19 @@
 import PySimpleGUI as sg
-from logic import fetch_files, download_files, DEFAULT_URL, DEFAULT_OUTPUT_DIRECTORY, DEFAULT_FILE_TYPE
+from logic import fetch_files, download_files, save_settings, load_settings
 
 def start_gui():
+    # Load previous session settings
+    settings = load_settings()
+    last_url = settings.get("last_url", "")
+    last_output_directory = settings.get("last_output_directory", "")
+    last_file_type = settings.get("last_file_type", ".pdf")
+
     # Layout for the GUI
     layout = [
-        [sg.Text("Enter URL:"), sg.InputText(DEFAULT_URL, key="-URL-")],
-        [sg.Text("Select Output Folder:"), sg.Input(DEFAULT_OUTPUT_DIRECTORY, key="-OUTPUT-", enable_events=True), sg.FolderBrowse()],
-        [sg.Text("Enter File Type (e.g., .pdf):"), sg.InputText(DEFAULT_FILE_TYPE, key="-FILETYPE-")],
-        [sg.Button("Search"), sg.Button("Exit")],
+        [sg.Text("Enter URL:"), sg.InputText(last_url, key="-URL-")],
+        [sg.Text("Select Output Folder:"), sg.Input(last_output_directory, key="-OUTPUT-", enable_events=True), sg.FolderBrowse(initial_folder=last_output_directory)],
+        [sg.Text("Enter File Type (e.g., .pdf):"), sg.InputText(last_file_type, key="-FILETYPE-")],
+        [sg.Button("Search")],
         [sg.Listbox(values=[], enable_events=False, select_mode=sg.LISTBOX_SELECT_MODE_MULTIPLE, size=(60, 20), key="-FILELIST-")],
         [sg.Button("Download Selected")]
     ]
@@ -17,8 +23,14 @@ def start_gui():
     files = []
     while True:
         event, values = window.read()
-        
-        if event in (sg.WINDOW_CLOSED, "Exit"):
+
+        if event == sg.WINDOW_CLOSED:
+            # Save settings to JSON on exit
+            save_settings(
+                window["-URL-"].get(),
+                window["-OUTPUT-"].get(),
+                window["-FILETYPE-"].get()
+            )
             break
 
         if event == "Search":

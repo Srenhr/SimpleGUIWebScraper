@@ -3,15 +3,27 @@ from bs4 import BeautifulSoup
 import urllib.parse
 import os
 import urllib.request
-from dotenv import load_dotenv
+import json
 
-# Load environment variables from .env
-load_dotenv()
+# File for storing user settings
+SETTINGS_FILE = "settings.json"
 
-# Default values
-DEFAULT_URL = os.getenv("URL", "")
-DEFAULT_OUTPUT_DIRECTORY = os.getenv("DEFAULT_OUTPUT_DIRECTORY", "downloads")
-DEFAULT_FILE_TYPE = os.getenv("DEFAULT_FILE_TYPE", ".pdf")
+def load_settings():
+    """Load user settings from a JSON file."""
+    if os.path.exists(SETTINGS_FILE):
+        with open(SETTINGS_FILE, "r") as f:
+            return json.load(f)
+    return {"last_url": "", "last_output_directory": "", "last_file_type": ".pdf"}
+
+def save_settings(url, output_directory, file_type):
+    """Save user settings to a JSON file."""
+    settings = {
+        "last_url": url,
+        "last_output_directory": output_directory,
+        "last_file_type": file_type
+    }
+    with open(SETTINGS_FILE, "w") as f:
+        json.dump(settings, f, indent=4)
 
 def fetch_files(url, file_type):
     """Fetch files of the specified type from the given URL."""
