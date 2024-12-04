@@ -41,18 +41,21 @@ def download_files(base_url, files, output_directory):
     if not os.path.exists(output_directory):
         os.makedirs(output_directory)
 
+    results = []  # To store logs for progress_popup
+
     for file in files:
-        file_url = urllib.parse.urljoin(base_url, file)
-        file_name = os.path.join(output_directory, os.path.basename(file))
-        
-        if os.path.exists(file_name):
-            print(f"File {file_name} already exists. Skipping download.")
+        file_path = os.path.join(output_directory, os.path.basename(file))
+
+        # Check if the file already exists
+        if os.path.exists(file_path):
+            results.append(f"File {file_path} already exists. Skipping...")
             continue
 
         try:
-            print(f"Downloading {file}...")
-            urllib.request.urlretrieve(file_url, file_name)
+            file_url = urllib.parse.urljoin(base_url, file)
+            urllib.request.urlretrieve(file_url, file_path)
+            results.append(f"Successfully downloaded {file} to {file_path}.")
         except Exception as e:
-            print(f"Failed to download {file}: {e}")
-        else:
-            print(f"Saved to {file_name}")
+            results.append(f"Failed to download {file}: {e}")
+    
+    return results

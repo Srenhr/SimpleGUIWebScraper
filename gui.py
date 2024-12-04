@@ -1,5 +1,49 @@
+import urllib.request
+import os
 import PySimpleGUI as sg
 from logic import fetch_files, download_files, save_settings, load_settings
+
+def progress_popup(files, base_url, output_directory):
+    """Popup with a progress bar and log for downloading files."""
+    layout = [
+        [sg.Text("Downloading Files...")],
+        [sg.ProgressBar(len(files), orientation='h', size=(40, 20), key="-PROGRESS-")],
+        [sg.Multiline("", size=(60, 15), disabled=True, autoscroll=True, key="-LOG-")],
+        [sg.Button("Close", key="-CLOSE-", disabled=True)]
+    ]
+
+    popup = sg.Window("Download Progress", layout, modal=True, finalize=True)  # Added finalize=True
+    progress_bar = popup["-PROGRESS-"]
+    log = popup["-LOG-"]
+
+    logs = []
+    for i, file in enumerate(files):
+        file_url = urllib.parse.urljoin(base_url, file)
+        file_name = os.path.join(output_directory, os.path.basename(file))
+
+        # Check if file exists
+        if os.path.exists(file_name):
+            message = f"File {file_name} already exists. Skipping download."
+            logs.append(message)
+        else:
+            try:
+                urllib.request.urlretrieve(file_url, file_name)
+                message = f"Downloaded {file_name}"
+                logs.append(message)
+            except Exception as e:
+                message = f"Failed to download {file_name}: {e}"
+                logs.append(message)
+
+        # Update the popup's progress bar and log
+        current_log = "\n".join(logs)
+        log.update(current_log)
+        progress_bar.update(i + 1)
+        popup.refresh()
+
+    # Enable the "Close" button after all downloads are complete
+    popup["-CLOSE-"].update(disabled=False)
+    popup.read(close=True)
+
 
 def start_gui():
     # Load previous session settings
@@ -57,9 +101,16 @@ def start_gui():
                 sg.popup_error("Please select at least one file to download.")
                 continue
 
+            # try:
+            #     download_files(values["-URL-"], selected_files, values["-OUTPUT-"])
+            #     sg.popup("Selected files downloaded successfully!")
+            # except Exception as e:
+            #     sg.popup_error(f"Error: {e}")
+
             try:
-                download_files(values["-URL-"], selected_files, values["-OUTPUT-"])
-                sg.popup("Selected files downloaded successfully!")
+                # Show progress bar popup
+                progress_popup(selected_files, values["-URL-"], values["-OUTPUT-"])
+                # sg.popup("Selected files downloaded successfully!")
             except Exception as e:
                 sg.popup_error(f"Error: {e}")
 
