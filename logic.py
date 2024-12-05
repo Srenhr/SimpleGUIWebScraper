@@ -1,11 +1,9 @@
+from urllib.parse import urljoin, urlparse
 import requests
 from bs4 import BeautifulSoup
-import urllib.parse
 import os
-import urllib.request
 import json
 
-# File for storing user settings
 SETTINGS_FILE = "settings.json"
 
 def load_settings():
@@ -25,37 +23,50 @@ def save_settings(url, output_directory, file_type):
     with open(SETTINGS_FILE, "w") as f:
         json.dump(settings, f, indent=4)
 
-def fetch_files(url, file_type):
-    """Fetch files of the specified type from the given URL."""
-    response = requests.get(url)
-    response.raise_for_status()  # Raise an HTTPError for bad responses (4xx and 5xx)
+def fetch_files(url, file_types):
+    """
+    Fetch files of the specified type(s) from the given URL.
 
-    soup = BeautifulSoup(response.content, 'html.parser')
-    links = soup.find_all('a', href=True)
-    files = [link['href'] for link in links if link['href'].endswith(file_type)]
-    
-    return files
+    Args:
+        url (str): The URL of the webpage to scrape.
+        file_types (list[str]): List of file extensions (e.g., [".pdf", ".docx"]).
 
-def download_files(base_url, files, output_directory):
-    """Download selected files to the specified output directory."""
-    if not os.path.exists(output_directory):
-        os.makedirs(output_directory)
+    Returns:
+        list[str]: List of absolute URLs for the files matching the given extensions.
+    """
+    # Validate URL
+    parsed_url = urlparse(url)
+    if not parsed_url.scheme or not parsed_url.netloc:
+        raise ValueError(f"Invalid URL: {url}")
 
-    results = []  # To store logs for progress_popup
+    # User-Agent header to avoid 403 errors
+    headers = {"User-Agent": "Mozilla/5.0"}
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        raise RuntimeError(f"Failed to fetch URL {url}: {e}")
 
-    for file in files:
-        file_path = os.path.join(output_directory, os.path.basename(file))
+    # Parse the webpage content
+    soup = BeautifulSoup(response.content, "html.parser")
+    links = soup.find_all("a", href=True)
 
-        # Check if the file already exists
-        if os.path.exists(file_path):
-            results.append(f"File {file_path} already exists. Skipping...")
-            continue
+    # Collect valid file links
+    valid_files = []
+    for link in links:
+        href = link["href"]
+        # Check if the link ends with any of the specified file types
+        if any(href.lower().endswith(ft.lower()) for ft in file_types):
+            # Convert relative URLs to absolute URLs
+            absolute_url = urljoin(url, href)
+            # Ensure the absolute URL is valid
+            if urlparse(absolute_url).scheme in ("http", "https"):
+                valid_files.append(absolute_url)
 
-        try:
-            file_url = urllib.parse.urljoin(base_url, file)
-            urllib.request.urlretrieve(file_url, file_path)
-            results.append(f"Successfully downloaded {file} to {file_path}.")
-        except Exception as e:
-            results.append(f"Failed to download {file}: {e}")
-    
-    return results
+    # Log if no files are found
+    if not valid_files:
+        print(f"No files of types {file_types} found at {url}.")
+
+    return valid_files
+
+
