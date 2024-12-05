@@ -1,6 +1,6 @@
 # Simple Web Scraper and Downloader
 
-This project is a simple web scraper and file downloader application that allows users to fetch and download files from web pages. It includes a GUI for easier interaction and supports settings persistence.
+This is a personal hobby project – a simple web scraper and file downloader application. It allows users to fetch and download files (such as `.pdf`, `.docx`, etc.) from web pages. The application includes a GUI for easier interaction and supports settings persistence across sessions.
 
 ## Features
 
