@@ -9,11 +9,15 @@ Usage:
     Run this script to launch the GUI and start downloading files from the web.
 
 Dependencies:
-    - `requests` for making HTTP requests.
-    - `BeautifulSoup` from `bs4` for parsing HTML and extracting links.
-    - `urllib.parse` for URL manipulation.
-    - `random` and `time` for adding random delays to requests (in the downloader).
+    - requests: For making HTTP requests.
+    - bs4 (BeautifulSoup): For parsing HTML content.
+    - os: For file system operations.
+    - urllib.parse: For URL handling.
+    - time: For adding delays.
+    - random: For generating random numbers.
+    - json: For saving and loading settings.
 """
+
 from gui import start_gui
 
 if __name__ == "__main__":
