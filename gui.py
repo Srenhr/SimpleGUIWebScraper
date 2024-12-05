@@ -1,7 +1,8 @@
 import os
 import threading
 import PySimpleGUI as sg
-from logic import fetch_files, save_settings, load_settings
+from scraper import fetch_files
+from settings import save_settings, load_settings
 from downloader import download_files_with_progress
 
 def progress_popup(files, base_url, output_directory):

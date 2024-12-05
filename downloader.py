@@ -2,8 +2,7 @@ import os
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
-import time
-import random
+from utils import apply_random_delay
 
 def download_file(base_url, file, output_directory):
     """Download a single file with a randomized delay."""
@@ -18,9 +17,8 @@ def download_file(base_url, file, output_directory):
         # Resolve relative URLs
         file_url = urllib.parse.urljoin(base_url, file)
         
-        # Introduce a randomized delay (1 to 3 seconds)
-        delay = random.uniform(1, 3)
-        time.sleep(delay)
+        # Apply a randomized delay
+        apply_random_delay()
 
         # Download the file
         urllib.request.urlretrieve(file_url, file_path)
