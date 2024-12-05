@@ -1,4 +1,4 @@
-# Web Scraper and Downloader
+# Simple Web Scraper and Downloader
 
 This project is a simple web scraper and file downloader application that allows users to fetch and download files from web pages. It includes a GUI for easier interaction and supports settings persistence.
 
