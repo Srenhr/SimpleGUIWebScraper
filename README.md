@@ -14,13 +14,9 @@ This project is a simple web scraper and file downloader application that allows
 
 This project requires the following Python libraries:
 
-- `requests`: For making HTTP requests.
-- `bs4` (BeautifulSoup): For parsing HTML content.
-- `os`: For file system operations.
-- `urllib.parse`: For URL handling.
-- `time`: For adding delays.
-- `random`: For generating random numbers.
-- `json`: For saving and loading settings.
+- `beautifulsoup4` for parsing HTML content.
+- `PySimpleGUI` for creating the graphical user interface.
+- `requests` for making HTTP requests.
 
 You can install the required dependencies by running:
 
