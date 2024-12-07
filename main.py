@@ -8,15 +8,27 @@ and manage the flow of downloading and scraping files.
 
 from gui import start_gui
 import argparse
+import logging
 
 def main():
-    # Parse command-line arguments to enable developer mode
-    parser = argparse.ArgumentParser(description="Simple Web Scraper and Downloader")
-    parser.add_argument('--developer', action='store_true', help="Enable developer mode for inspecting HTML elements.")
-    args = parser.parse_args()
+    parser = argparse.ArgumentParser(
+        description="File downloader and scraper application. Allows downloading files from a specified URL and scraping content."
+    )
+    parser.add_argument(
+        '-d', '--debug',
+        help="Enable debugging output with detailed statements.",
+        action="store_const", dest="loglevel", const=logging.DEBUG,
+        default=logging.WARNING,
+    )
+    parser.add_argument(
+        '-v', '--verbose',
+        help="Enable verbose logging for more detailed information.",
+        action="store_const", dest="loglevel", const=logging.INFO,
+    )
+    args = parser.parse_args()    
+    logging.basicConfig(level=args.loglevel,format="%(asctime)s - %(levelname)s - %(message)s")
 
-    # Pass developer_mode to the GUI or scraper
-    start_gui(developer_mode=args.developer)
+    start_gui()
 
 if __name__ == "__main__":
     main()
