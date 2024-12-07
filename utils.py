@@ -1,5 +1,6 @@
 import random
 import time
+import logging
 
 def apply_random_delay(min_seconds=1, max_seconds=3):
     """
@@ -10,5 +11,5 @@ def apply_random_delay(min_seconds=1, max_seconds=3):
         max_seconds (int): Maximum delay in seconds.
     """
     delay = random.uniform(min_seconds, max_seconds)
-    #print(f"Applying a delay of {delay:.2f} seconds...")
+    logging.info(f"Applying a delay of {delay:.2f} seconds...")
     time.sleep(delay)

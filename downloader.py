@@ -7,6 +7,7 @@ from utils import apply_random_delay
 
 def download_file(base_url, file, output_directory):
     file_name = os.path.basename(file)
+    file_name = urllib.parse.unquote(file_name)
     file_path = os.path.join(output_directory, file_name)
 
     if os.path.exists(file_path):
