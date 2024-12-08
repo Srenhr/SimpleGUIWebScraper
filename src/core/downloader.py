@@ -3,7 +3,7 @@ import urllib.parse
 import urllib.request
 import logging
 from concurrent.futures import ThreadPoolExecutor
-from utils import apply_random_delay
+from src.utils import add_random_delay
 
 def download_file(base_url, file, output_directory):
     file_name = os.path.basename(file)
@@ -16,7 +16,7 @@ def download_file(base_url, file, output_directory):
 
     try:
         file_url = urllib.parse.urljoin(base_url, file)
-        apply_random_delay()
+        add_random_delay()
         urllib.request.urlretrieve(file_url, file_path)
         logging.info(f"Successfully downloaded {file_name}.")
         return f"Successfully downloaded {file_name}."

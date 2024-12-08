@@ -2,7 +2,7 @@ import random
 import time
 import logging
 
-def apply_random_delay(min_seconds=1, max_seconds=3):
+def add_random_delay(min_seconds=1, max_seconds=3):
     """
     Apply a randomized delay to mimic human behavior.
 

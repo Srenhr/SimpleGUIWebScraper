@@ -6,7 +6,7 @@ download files from a specified URL. It interacts with the `gui` module to displ
 and manage the flow of downloading and scraping files.
 """
 
-from gui import start_gui
+from src.ui import start_gui
 import argparse
 import logging
 

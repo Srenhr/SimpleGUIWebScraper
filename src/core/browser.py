@@ -9,6 +9,8 @@ from selenium.webdriver.safari.service import Service as SafariService
 from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.firefox import GeckoDriverManager
 
+
+
 def detect_default_browser():
     if platform.system() == "Windows":
         import winreg
@@ -81,3 +83,12 @@ def highlight_element(driver, element):
     driver.execute_script("arguments[0].style.border='3px solid red'", element)
     time.sleep(3)
     logging.info("Element highlighted.")
+
+class BrowserManager:
+    def __init__(self):
+        self.driver = None
+        
+    def get_driver(self):
+        if not self.driver:
+            self.driver = get_webdriver()
+        return ensure_driver(self.driver)
