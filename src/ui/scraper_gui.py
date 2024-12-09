@@ -10,6 +10,7 @@ from ..config import AppConfig
 from ..core.browser_manager import BrowserManager
 from ..core.scraper_service import ScraperService
 from ..core.download_manager import DownloadManager
+from ..core.exceptions import WebScraperError, BrowserError, ScraperError, DownloaderError
 from ..utils.settings_manager import save_settings, load_settings
 from .progress_popup import create_progress_popup
 
@@ -20,7 +21,7 @@ class WebScraperGUI:
         self.browser_manager = BrowserManager(config)
         self.scraper_service = ScraperService(config, self.browser_manager)
         self.download_manager = DownloadManager(config)
-        self.settings = load_settings(config.SETTINGS_FILE)
+        self.settings = load_settings(self.config.SETTINGS_FILE)
         self.window: Optional[sg.Window] = None
         self.files: List[str] = []
 
@@ -66,9 +67,14 @@ class WebScraperGUI:
             file_data = [[Path(f).name] for f in self.files]
             self.window["-FILELIST-"].update(file_data)
 
+        except ScraperError as e:
+            self.logger.error(f"Scraping error: {e}", exc_info=True)
+            sg.popup_error(f"Error during search: {str(e)}")
+            self.window["-FILELIST-"].update([["Error occurred"]])
         except Exception as e:
-            self.logger.error(f"Error during search: {e}", exc_info=True)
-            sg.popup_error(f"An error occurred: {str(e)}")
+            self.logger.error(f"Unexpected error during search: {e}", exc_info=True)
+            sg.popup_error(f"An unexpected error occurred: {str(e)}")
+            self.window["-FILELIST-"].update([["Error occurred"]])
 
     async def handle_download(self, values: Dict[str, Any]) -> None:
         selected_indices = values["-FILELIST-"]
@@ -88,9 +94,12 @@ class WebScraperGUI:
             )
             progress.close()
 
+        except DownloaderError as e:
+            self.logger.error(f"Download error: {e}", exc_info=True)
+            sg.popup_error(f"Error during download: {str(e)}")
         except Exception as e:
-            self.logger.error(f"Error during download: {e}", exc_info=True)
-            sg.popup_error(f"An error occurred: {str(e)}")
+            self.logger.error(f"Unexpected error during download: {e}", exc_info=True)
+            sg.popup_error(f"An unexpected error occurred: {str(e)}")
 
     async def handle_show_in_browser(self, values: Dict[str, Any]) -> None:
         selected_indices = values["-FILELIST-"]
@@ -104,22 +113,24 @@ class WebScraperGUI:
             driver.get(values["-URL-"])
             element = driver.find_element(By.PARTIAL_LINK_TEXT, Path(selected_file).name)
             driver.execute_script("arguments[0].style.border='3px solid red'", element)
-            
+        except BrowserError as e:
+            self.logger.error(f"Browser error: {e}", exc_info=True)
+            sg.popup_error(f"Browser error: {str(e)}")
+            self.browser_manager.cleanup()
         except Exception as e:
-            self.logger.error(f"Error showing in browser: {e}")
-            sg.popup_error(f"Error highlighting element: {e}")
+            self.logger.error(f"Unexpected error in browser: {e}", exc_info=True)
+            sg.popup_error(f"An unexpected error occurred: {str(e)}")
             self.browser_manager.cleanup()
 
-    async def run(self) -> None:       
+    async def run(self) -> None:
+        await self.download_manager.ensure_session()
+        
         self.window = sg.Window(
             'Web Scraper', 
             self.create_layout(),
             resizable=True,
             finalize=True
         )
-
-        # Initialize session after event loop is running
-        await self.download_manager.ensure_session()
 
         try:
             while True:
@@ -142,6 +153,9 @@ class WebScraperGUI:
                 elif event == "Show in Browser":
                     await self.handle_show_in_browser(values)
 
+        except Exception as e:
+            self.logger.error(f"Fatal error in GUI: {e}", exc_info=True)
+            sg.popup_error(f"A fatal error occurred: {str(e)}")
         finally:
             await self.download_manager.cleanup()
             self.browser_manager.cleanup()

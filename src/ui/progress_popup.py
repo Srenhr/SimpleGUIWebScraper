@@ -1,8 +1,9 @@
 # src/ui/progress_popup.py
 import asyncio
-import PySimpleGUI as sg
+import logging
 from dataclasses import dataclass
 from typing import Callable, Optional
+import PySimpleGUI as sg
 
 @dataclass
 class ProgressState:
@@ -16,44 +17,102 @@ class ProgressPopup:
     def __init__(self, total: int):
         self.total = total
         self.current = 0
+        self.logger = logging.getLogger(__name__)
         self.window = self._create_window()
         self.progress_bar = self.window["-PROGRESS-"]
         self.log = self.window["-LOG-"]
+        self.closed = False
 
     def _create_window(self) -> sg.Window:
-        layout = [
-            [sg.Text("Downloading Files...")],
-            [sg.ProgressBar(self.total, orientation='h', size=(40, 20), key="-PROGRESS-")],
-            [sg.Multiline("", size=(60, 15), disabled=True, autoscroll=True, key="-LOG-")],
-            [sg.Button("Close", key="-CLOSE-", disabled=True)]
-        ]
-        return sg.Window("Download Progress", layout, modal=True, finalize=True)
+        """Create progress window with error handling"""
+        try:
+            layout = [
+                [sg.Text("Downloading Files...")],
+                [sg.ProgressBar(
+                    self.total, 
+                    orientation='h',
+                    size=(40, 20),
+                    key="-PROGRESS-"
+                )],
+                [sg.Multiline(
+                    "", 
+                    size=(60, 15),
+                    disabled=True,
+                    autoscroll=True,
+                    key="-LOG-",
+                    background_color='white',
+                    text_color='black'
+                )],
+                [sg.Button("Close", key="-CLOSE-", disabled=True)]
+            ]
+            return sg.Window(
+                "Download Progress",
+                layout,
+                modal=True,
+                finalize=True,
+                keep_on_top=True
+            )
+        except Exception as e:
+            self.logger.error(f"Error creating progress window: {e}")
+            raise
 
     async def update(self, message: str) -> None:
-        """Update progress bar and log with new message"""
-        self.current += 1
-        self.progress_bar.update(self.current)
-        self.log.print(message)
-        
-        # Process events more frequently
-        event, _ = self.window.read(timeout=1)  # Reduced timeout
-        if event in (sg.WIN_CLOSED, "-CLOSE-"):
-            self.close()
+        """Update progress bar and log with error handling"""
+        if self.closed:
             return
+
+        try:
+            # Update progress when a file is complete
+            # if "Download complete:" in message or "File already exists:" in message:
+            if "Successfully downloaded" in message or "already exists, skipping..." in message:
+                self.current += 1
+                self.progress_bar.update_bar(self.current, self.total)
             
-        if self.current >= self.total:
-            self.window["-CLOSE-"].update(disabled=False)
-        
-        # Force window refresh
-        self.window.refresh()
-        await asyncio.sleep(0.001)  # Smaller sleep interval
+            # Print all messages
+            self.log.print(message)
+            
+            # Process events
+            event, _ = self.window.read(timeout=1)
+            if event in (sg.WIN_CLOSED, "-CLOSE-"):
+                self.close()
+                return
+                
+            # When all files are processed
+            if self.current >= self.total:
+                self.log.print("\nAll files processed successfully!")
+                self.window.refresh()
+                await asyncio.sleep(3)  # 3 second delay before enabling close
+                self.window["-CLOSE-"].update(disabled=False)
+            
+            self.window.refresh()
+            await asyncio.sleep(0.001)
+
+        except Exception as e:
+            self.logger.error(f"Error updating progress: {e}")
+            self.close()
 
     def close(self) -> None:
-        """Close the progress window"""
-        if self.window:
-            self.window.close()
-            self.window = None
+        """Close progress window with cleanup"""
+        if not self.closed:
+            try:
+                if self.window:
+                    self.window.close()
+            except Exception as e:
+                self.logger.error(f"Error closing progress window: {e}")
+            finally:
+                self.window = None
+                self.closed = True
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
 
 def create_progress_popup(total: int) -> ProgressPopup:
     """Factory function to create progress popup"""
-    return ProgressPopup(total)
+    try:
+        return ProgressPopup(total)
+    except Exception as e:
+        logging.error(f"Failed to create progress popup: {e}")
+        raise

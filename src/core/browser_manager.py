@@ -12,7 +12,7 @@ from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.common.exceptions import WebDriverException
 from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.firefox import GeckoDriverManager
-from .exceptions import BrowserError
+from .exceptions import BrowserConnectionError
 
 from ..config import AppConfig
 
@@ -69,35 +69,41 @@ class BrowserManager:
             return webdriver.Firefox(service=service, options=options)
 
     def _ensure_driver(self) -> WebDriver:
-        """Ensure driver is working with better error handling"""
-        max_retries = 3
-        retry_delay = 1
-        
+        """Ensure driver is working with exponential backoff"""
+        max_retries = self.config.RETRY_ATTEMPTS
         for attempt in range(max_retries):
             try:
                 if not self.driver:
                     self.driver = self._create_driver()
-                # Test if driver is responsive - using current_url instead of title
                 self.driver.current_url
                 return self.driver
             except WebDriverException as e:
-                self.logger.warning(f"Driver check failed (attempt {attempt + 1}/{max_retries}): {e}")
+                delay = min(2 ** attempt, 30)  # Exponential backoff, max 30s
+                self.logger.warning(
+                    f"Driver check failed (attempt {attempt + 1}/{max_retries})"
+                    f" waiting {delay}s: {e}"
+                )
                 self.cleanup()
                 if attempt < max_retries - 1:
-                    time.sleep(retry_delay)
+                    time.sleep(delay)
                     self.driver = self._create_driver()
                 else:
-                    raise BrowserError("Failed to initialize browser after multiple attempts") from e
+                    raise BrowserConnectionError(
+                        f"Failed to initialize browser after {max_retries} attempts",
+                        original_error=e
+                    )
         return self.driver
 
     def cleanup(self) -> None:
-        """Clean up browser resources with better error handling"""
+        """Clean up browser resources with proper error handling"""
         if self.driver:
             try:
                 self.driver.quit()
-                # Consistent cleanup delay
-                time.sleep(1)
+                time.sleep(1)  # Allow cleanup to complete
             except Exception as e:
-                self.logger.error(f"Cleanup error: {e}")
+                self.logger.error(
+                    f"Browser cleanup failed: {e}. "
+                    "Process may need manual termination."
+                )
             finally:
                 self.driver = None
