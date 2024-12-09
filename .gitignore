@@ -3,4 +3,6 @@
 files
 __pycache__
 settings.json 
-tests/  
+tests/
+logs/
+downloads/
