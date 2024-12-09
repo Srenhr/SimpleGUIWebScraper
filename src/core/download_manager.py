@@ -1,4 +1,4 @@
-# src/core/file_downloader.py
+# src/core/download_manager.py
 import aiohttp
 import asyncio
 import logging
@@ -18,27 +18,21 @@ class DownloadManager:
         self._cache: Dict[str, Path] = {}
         self._session: Optional[aiohttp.ClientSession] = None
         self.timeout = aiohttp.ClientTimeout(total=30, connect=10)
-        self.connector = aiohttp.TCPConnector(
-            limit=10,
-            ttl_dns_cache=300,
-            use_dns_cache=True
-        )
+        self.connector = None
 
-    async def __aenter__(self):
-        self._session = aiohttp.ClientSession(
-            timeout=self.timeout,
-            connector=self.connector
-        )
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if self._session:
-            await self._session.close()
-
-    async def _add_delay(self) -> None:
-        """Add random delay between downloads"""
-        delay = random.uniform(self.config.DEFAULT_DELAY_MIN, self.config.DEFAULT_DELAY_MAX)
-        await asyncio.sleep(delay)
+    async def ensure_session(self) -> None:
+        """Ensure session is active with lazy connector initialization"""
+        if not self._session or self._session.closed:
+            if not self.connector:
+                self.connector = aiohttp.TCPConnector(
+                    limit=10,
+                    ttl_dns_cache=300,
+                    use_dns_cache=True
+                )
+            self._session = aiohttp.ClientSession(
+                timeout=self.timeout,
+                connector=self.connector
+            )
 
     async def download_file(
         self,
@@ -61,6 +55,7 @@ class DownloadManager:
                 await progress_callback(f"{filename} already exists, skipping...")
             return output_path
 
+        await self.ensure_session()
         chunk_size = min(self.config.DOWNLOAD_CHUNK_SIZE * 2, 81920)
         
         for attempt in range(self.config.RETRY_ATTEMPTS):
@@ -88,6 +83,7 @@ class DownloadManager:
                                     percent = int(downloaded * 100 / total_size)
                                     await progress_callback(f"Downloading {filename}: {percent}%")
                                     last_update = downloaded
+                                    await asyncio.sleep(0.001)
 
                 self.logger.info(f"Successfully downloaded {filename}")
                 if progress_callback:
@@ -99,9 +95,7 @@ class DownloadManager:
             except (aiohttp.ClientError, asyncio.TimeoutError) as e:
                 self.logger.error(f"Download attempt {attempt + 1} failed for {url}: {e}")
                 if attempt == self.config.RETRY_ATTEMPTS - 1:
-                    raise DownloaderError(
-                        f"Failed to download {filename} after {self.config.RETRY_ATTEMPTS} attempts"
-                    ) from e
+                    raise DownloaderError(f"Failed to download {filename}") from e
                 await asyncio.sleep(1 * (attempt + 1))
 
     async def download_files(
@@ -110,12 +104,22 @@ class DownloadManager:
         output_dir: Path,
         progress_callback: Optional[Callable[[str], None]] = None
     ) -> List[Path]:
-        """Download multiple files concurrently with progress updates"""
-        self.logger.info(f"Starting download of {len(files)} files to {output_dir}")
+        """Download multiple files with progress updates"""
+        await self.ensure_session()
         
-        async with self:  # Use context manager for session
-            tasks = [
-                self.download_file(url, output_dir, progress_callback)
-                for url in files
-            ]
-            return await asyncio.gather(*tasks)
+        self.logger.info(f"Starting download of {len(files)} files to {output_dir}")
+        tasks = [
+            self.download_file(url, output_dir, progress_callback)
+            for url in files
+        ]
+        return await asyncio.gather(*tasks)
+
+    async def _add_delay(self) -> None:
+        """Add random delay between downloads"""
+        delay = random.uniform(self.config.DEFAULT_DELAY_MIN, self.config.DEFAULT_DELAY_MAX)
+        await asyncio.sleep(delay)
+
+    async def cleanup(self) -> None:
+        """Clean up resources"""
+        if self._session and not self._session.closed:
+            await self._session.close()

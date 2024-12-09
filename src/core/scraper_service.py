@@ -2,6 +2,7 @@
 import logging
 import requests
 import requests.adapters
+import aiohttp
 from typing import List, Set, Optional
 from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
@@ -43,6 +44,9 @@ class ScraperService:
         """Fetch files of specified types from URL with performance monitoring"""
         self.logger.info(f"Fetching files from {url}")
         
+        # Clear seen_urls cache for new search
+        self.seen_urls.clear()
+        
         try:
             if not self._is_valid_url(url):
                 raise ScraperError(f"Invalid URL format: {url}")
@@ -56,19 +60,17 @@ class ScraperService:
                 "Upgrade-Insecure-Requests": "1"
             }
 
-            response = self.session.get(
-                url, 
-                headers=headers, 
-                timeout=30
-            )
-            response.raise_for_status()
-            
-            soup = BeautifulSoup(response.content, 'html.parser')
-            files = self._extract_files(soup, url, file_types)
-            self.logger.info(f"Found {len(files)} files")
-            return files
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers) as response:
+                    response.raise_for_status()
+                    content = await response.text()
+                    
+                    soup = BeautifulSoup(content, 'html.parser')
+                    files = self._extract_files(soup, url, file_types)
+                    self.logger.info(f"Found {len(files)} files")
+                    return files
 
-        except RequestException as e:
+        except aiohttp.ClientError as e:
             error_msg = f"Failed to fetch URL {url}"
             self.logger.error(f"{error_msg}: {e}")
             raise ScraperError(error_msg, e)
