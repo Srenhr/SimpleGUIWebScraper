@@ -12,6 +12,9 @@ from .exceptions import DownloaderError, DownloadTimeout
 from ..config import AppConfig
 
 class DownloadManager:
+    SUCCESS_MESSAGE = "Successfully downloaded"
+    SKIP_MESSAGE = "already exists, skipping..."
+
     def __init__(self, config: AppConfig):
         self.config = config
         self.logger = logging.getLogger(__name__)
@@ -43,6 +46,11 @@ class DownloadManager:
             return False
         return True
 
+    async def _notify_progress(self, message: str, progress_callback: Optional[Callable[[str], None]]) -> None:
+        """Notify progress if callback is provided"""
+        if progress_callback:
+            await progress_callback(message)
+
     async def download_file(
         self,
         url: str, 
@@ -50,22 +58,14 @@ class DownloadManager:
         progress_callback: Optional[Callable[[str], None]] = None
     ) -> Path:
         """Download single file with comprehensive error handling"""
-        if url in self._cache:
-            self.logger.debug(f"Using cached file for {url}")
-            return self._cache[url]
-
         filename = unquote(Path(url).name)
         output_path = output_dir / filename
         temp_path = output_path.with_suffix('.tmp')
 
-        # if progress_callback:
-        #     await progress_callback(f"Starting download of {filename}")
-
-        if output_path.exists():
-            self.logger.info(f"{filename} already exists, skipping...")
+        if url in self._cache or output_path.exists():
+            self.logger.info(f"{filename} {self.SKIP_MESSAGE}")
             self._cache[url] = output_path
-            if progress_callback:
-                await progress_callback(f"{filename} already exists, skipping...")
+            await self._notify_progress(f"{filename} {self.SKIP_MESSAGE}", progress_callback)
             return output_path
 
         await self.ensure_session()
@@ -99,7 +99,7 @@ class DownloadManager:
                         self._cache[url] = output_path
                         self.logger.info(f"Successfully downloaded {filename}")
                         if progress_callback:
-                            await progress_callback(f"Successfully downloaded {filename}")
+                            await progress_callback(f"{filename} {self.SUCCESS_MESSAGE}")
                         return output_path
                     else:
                         temp_path.unlink(missing_ok=True)
@@ -126,16 +126,17 @@ class DownloadManager:
         await self.ensure_session()
         
         self.logger.info(f"Starting download of {len(files)} files to {output_dir}")
-        tasks = [
-            self.download_file(url, output_dir, progress_callback)
-            for url in files
-        ]
+        results = []
+        for url in files:
+            try:
+                result = await self.download_file(url, output_dir, progress_callback)
+                results.append(result)
+            except Exception as e:
+                self.logger.error(f"Error downloading file {url}: {e}")
+                if progress_callback:
+                    await progress_callback(f"Error downloading file {url}: {e}")
         
-        try:
-            return await asyncio.gather(*tasks)
-        except Exception as e:
-            self.logger.error(f"Error during concurrent downloads: {e}")
-            raise
+        return results
 
     async def _add_delay(self) -> None:
         """Add random delay between downloads"""

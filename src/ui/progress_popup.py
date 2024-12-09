@@ -14,9 +14,11 @@ class ProgressState:
     total: int = 0
 
 class ProgressPopup:
-    def __init__(self, total: int):
+    def __init__(self, total: int, success_message: str, skip_message: str):
         self.total = total
         self.current = 0
+        self.success_message = success_message
+        self.skip_message = skip_message
         self.logger = logging.getLogger(__name__)
         self.window = self._create_window()
         self.progress_bar = self.window["-PROGRESS-"]
@@ -63,8 +65,7 @@ class ProgressPopup:
 
         try:
             # Update progress when a file is complete
-            # if "Download complete:" in message or "File already exists:" in message:
-            if "Successfully downloaded" in message or "already exists, skipping..." in message:
+            if self.success_message in message or self.skip_message in message:
                 self.current += 1
                 self.progress_bar.update_bar(self.current, self.total)
             
@@ -79,9 +80,7 @@ class ProgressPopup:
                 
             # When all files are processed
             if self.current >= self.total:
-                self.log.print("\nAll files processed successfully!")
-                self.window.refresh()
-                await asyncio.sleep(3)  # 3 second delay before enabling close
+                #self.log.print("\nAll files processed successfully!")
                 self.window["-CLOSE-"].update(disabled=False)
             
             self.window.refresh()
@@ -90,6 +89,15 @@ class ProgressPopup:
         except Exception as e:
             self.logger.error(f"Error updating progress: {e}")
             self.close()
+
+    async def wait_for_close(self) -> None:
+        """Wait until the user clicks the close button"""
+        while not self.closed:
+            event, _ = self.window.read(timeout=100)
+            if event in (sg.WIN_CLOSED, "-CLOSE-"):
+                self.close()
+                break
+            await asyncio.sleep(0.1)
 
     def close(self) -> None:
         """Close progress window with cleanup"""
@@ -109,10 +117,10 @@ class ProgressPopup:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
-def create_progress_popup(total: int) -> ProgressPopup:
+def create_progress_popup(total: int, success_message: str, skip_message: str) -> ProgressPopup:
     """Factory function to create progress popup"""
     try:
-        return ProgressPopup(total)
+        return ProgressPopup(total, success_message, skip_message)
     except Exception as e:
         logging.error(f"Failed to create progress popup: {e}")
         raise

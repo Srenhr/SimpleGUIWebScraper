@@ -86,13 +86,17 @@ class WebScraperGUI:
         selected_files = [self.files[i] for i in selected_indices]
         
         try:
-            progress = create_progress_popup(len(selected_files))
+            progress = create_progress_popup(
+                len(selected_files),
+                self.download_manager.SUCCESS_MESSAGE,
+                self.download_manager.SKIP_MESSAGE
+            )
             await self.download_manager.download_files(
                 selected_files, 
                 output_dir,
                 progress.update
             )
-            progress.close()
+            await progress.wait_for_close()
 
         except DownloaderError as e:
             self.logger.error(f"Download error: {e}", exc_info=True)
