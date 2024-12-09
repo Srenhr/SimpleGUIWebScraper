@@ -12,6 +12,7 @@ from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.common.exceptions import WebDriverException
 from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.firefox import GeckoDriverManager
+from .exceptions import BrowserError
 
 from ..config import AppConfig
 
@@ -68,25 +69,35 @@ class BrowserManager:
             return webdriver.Firefox(service=service, options=options)
 
     def _ensure_driver(self) -> WebDriver:
-        """Ensure driver is working"""
-        try:
-            if self.driver:
-                self.driver.title  # Test if driver is responsive
+        """Ensure driver is working with better error handling"""
+        max_retries = 3
+        retry_delay = 1
+        
+        for attempt in range(max_retries):
+            try:
+                if not self.driver:
+                    self.driver = self._create_driver()
+                # Test if driver is responsive - using current_url instead of title
+                self.driver.current_url
                 return self.driver
-        except WebDriverException as e:
-            self.logger.warning(f"Driver check failed: {e}")
-            self.cleanup()
-            self.driver = self._create_driver()
+            except WebDriverException as e:
+                self.logger.warning(f"Driver check failed (attempt {attempt + 1}/{max_retries}): {e}")
+                self.cleanup()
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                    self.driver = self._create_driver()
+                else:
+                    raise BrowserError("Failed to initialize browser after multiple attempts") from e
         return self.driver
 
     def cleanup(self) -> None:
-        """Clean up browser resources"""
+        """Clean up browser resources with better error handling"""
         if self.driver:
             try:
                 self.driver.quit()
+                # Consistent cleanup delay
+                time.sleep(1)
             except Exception as e:
                 self.logger.error(f"Cleanup error: {e}")
             finally:
                 self.driver = None
-                # Add small delay to allow proper cleanup
-                time.sleep(0.5)

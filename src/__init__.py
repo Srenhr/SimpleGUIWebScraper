@@ -1,5 +1,5 @@
 # src/__init__.py
-from .core import BrowserManager, ScraperService, download_files
+from .core import BrowserManager, ScraperService, DownloadManager
 from .ui import WebScraperGUI, start_gui, ProgressPopup
 from .utils import Settings, SettingsManager, setup_logging
 from .config import AppConfig
@@ -7,7 +7,7 @@ from .config import AppConfig
 __all__ = [
     'BrowserManager',
     'ScraperService',
-    'download_files',
+    'DownloadManager',
     'WebScraperGUI',
     'start_gui',
     'ProgressPopup',

@@ -9,7 +9,7 @@ from selenium.webdriver.common.by import By
 from ..config import AppConfig
 from ..core.browser_manager import BrowserManager
 from ..core.scraper_service import ScraperService
-from ..core.file_downloader import download_files
+from ..core.download_manager import DownloadManager
 from ..utils.settings_manager import save_settings, load_settings
 from .progress_popup import create_progress_popup
 
@@ -19,9 +19,15 @@ class WebScraperGUI:
         self.logger = logging.getLogger(__name__)
         self.browser_manager = BrowserManager(config)
         self.scraper_service = ScraperService(config, self.browser_manager)
-        self.settings = load_settings(config.SETTINGS_FILE)
+        self.settings = load_settings(self.config.SETTINGS_FILE)
         self.window: Optional[sg.Window] = None
         self.files: List[str] = []
+        self.download_manager: Optional[DownloadManager] = None
+
+    async def initialize(self):
+        """Initialize async components"""
+        self.download_manager = DownloadManager(self.config)
+
 
     def create_layout(self) -> list:
         return [
@@ -79,7 +85,7 @@ class WebScraperGUI:
 
         try:
             self.window["-FILELIST-"].update([["Searching..."]])
-            self.files = self.scraper_service.fetch_files(url, [file_type])
+            self.files = await self.scraper_service.fetch_files(url, [file_type])
             
             if not self.files:
                 self.window["-FILELIST-"].update([["No files found."]])
@@ -103,20 +109,19 @@ class WebScraperGUI:
         
         try:
             progress = create_progress_popup(len(selected_files))
-            await download_files(selected_files, output_dir, self.config, progress.update)
+            await self.download_manager.download_files(
+                selected_files, 
+                output_dir, 
+                progress.update
+            )
             progress.close()
-
-            # save_settings(self.config.SETTINGS_FILE, {
-            #     "last_url": values["-URL-"],
-            #     "last_output_directory": str(output_dir),
-            #     "last_file_type": values["-FILETYPE-"]
-            # })
 
         except Exception as e:
             self.logger.error(f"Error during download: {e}", exc_info=True)
             sg.popup_error(f"An error occurred: {str(e)}")
 
     async def run(self) -> None:
+        await self.initialize()
         self.window = sg.Window(
             'Web Scraper', 
             self.create_layout(),
@@ -129,11 +134,14 @@ class WebScraperGUI:
                 event, values = self.window.read(timeout=100)
                 
                 if event == sg.WIN_CLOSED:
-                    save_settings(self.config.SETTINGS_FILE, {
-                        "last_url": self.window["-URL-"].get(),
-                        "last_output_directory": self.window["-OUTPUT-"].get(),
-                        "last_file_type": self.window["-FILETYPE-"].get()
-                    })
+                    save_settings(
+                        self.config.SETTINGS_FILE,
+                        {
+                            "last_url": self.window["-URL-"].get(),
+                            "last_output_directory": self.window["-OUTPUT-"].get(),
+                            "last_file_type": self.window["-FILETYPE-"].get()
+                        }
+                    )
                     break
                 
                 elif event == "Search":

@@ -1,54 +1,43 @@
 # src/utils/logging_setup.py
+import os
+import platform
 import logging
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
 from ..config import AppConfig
 
+# src/utils/logging_setup.py
 def setup_logging(config: AppConfig) -> None:
-    """Initialize logging configuration with rotating file handler"""
+    """Initialize logging with performance monitoring"""
     try:
-        # Create logs directory if it doesn't exist
         log_dir = config.LOG_DIR
         log_dir.mkdir(parents=True, exist_ok=True)
         
-        # Create formatters
-        file_formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
-        console_formatter = logging.Formatter(
-            '%(levelname)s: %(message)s'
-        )
-
-        # Setup rotating file handler
-        file_handler = RotatingFileHandler(
-            filename=log_dir / "webscraper.log",
-            maxBytes=5*1024*1024,  # 5MB
-            backupCount=3,
-            encoding='utf-8'
-        )
-        file_handler.setFormatter(file_formatter)
-        file_handler.setLevel(logging.DEBUG)
-
-        # Setup console handler
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(console_formatter)
-        console_handler.setLevel(config.LOG_LEVEL)
-
-        # Setup root logger
-        root_logger = logging.getLogger()
-        root_logger.setLevel(logging.DEBUG)
+        handlers = [
+            RotatingFileHandler(
+                filename=log_dir / "webscraper.log",
+                maxBytes=5*1024*1024,
+                backupCount=3,
+                encoding='utf-8'
+            ),
+            logging.StreamHandler()
+        ]
         
-        # Remove existing handlers
-        for handler in root_logger.handlers[:]:
-            root_logger.removeHandler(handler)
+        for handler in handlers:
+            handler.setFormatter(logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            ))
             
-        root_logger.addHandler(file_handler)
-        root_logger.addHandler(console_handler)
-
-    except Exception as e:
-        print(f"Failed to setup logging: {e}")
-        # Fallback to basic config
         logging.basicConfig(
             level=config.LOG_LEVEL,
-            format='%(levelname)s: %(message)s'
+            handlers=handlers
         )
+        
+        # Log system info
+        logging.info(f"Python version: {platform.python_version()}")
+        logging.info(f"Operating system: {platform.system()} {platform.version()}")
+        logging.info(f"CPU count: {os.cpu_count()}")
+        
+    except Exception as e:
+        print(f"Failed to setup logging: {e}")
+        logging.basicConfig(level=logging.WARNING)

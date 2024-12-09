@@ -1,8 +1,26 @@
-.venv
-.env
-files
-__pycache__
-settings.json 
-tests/
+# Virtual environments
+.venv/
+.env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Project specific
+files/
+settings.json
 logs/
 downloads/
+test_downloads/
+
+# IDE
+.vscode/
+*.code-workspace
+
+# Test artifacts
+htmlcov/
+.coverage
+coverage.xml
+.tox/
