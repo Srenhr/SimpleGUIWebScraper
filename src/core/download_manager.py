@@ -5,10 +5,8 @@ import logging
 import random
 from pathlib import Path
 from typing import Dict, List, Optional, Callable
-from aiohttp.client_exceptions import ClientError
-from urllib.parse import urlparse, unquote
-from .exceptions import DownloaderError, DownloadTimeout
-
+from urllib.parse import unquote
+from ..utils.exceptions import log_and_raise, DownloaderError, DownloadTimeout
 from ..config import AppConfig
 
 class DownloadManager:
@@ -110,11 +108,11 @@ class DownloadManager:
             except Exception as e:
                 self.logger.error(f"Download attempt {attempt + 1} failed for {url}: {e}")
                 if attempt == self.config.RETRY_ATTEMPTS - 1:
-                    raise DownloaderError(f"Failed to download {filename}") from e
+                    log_and_raise(self.logger, f"Failed to download {filename}", DownloaderError, e)
                 await asyncio.sleep(1 * (attempt + 1))
                 temp_path.unlink(missing_ok=True)
 
-        raise DownloaderError(f"All download attempts failed for {filename}")
+        log_and_raise(self.logger, f"All download attempts failed for {filename}", DownloaderError)
 
     async def download_files(
         self,

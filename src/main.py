@@ -1,9 +1,5 @@
-# src/main.py
-import asyncio
 import argparse
 import logging
-from pathlib import Path
-
 from src.config import AppConfig
 from src.ui.scraper_gui import start_gui
 from src.utils.logging_setup import setup_logging

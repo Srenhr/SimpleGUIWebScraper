@@ -20,14 +20,12 @@ class AppConfig:
     def load_from_file(cls, config_path: Path = Path("config.json")) -> 'AppConfig':
         """Load configuration from JSON file"""
         try:
-            if config_path.exists():
+            if (config_path.exists()):
                 with open(config_path, encoding='utf-8') as f:
                     config_data = json.load(f)
-                    # Convert string paths to Path objects
-                    if 'SETTINGS_FILE' in config_data:
-                        config_data['SETTINGS_FILE'] = Path(config_data['SETTINGS_FILE'])
-                    if 'LOG_DIR' in config_data:
-                        config_data['LOG_DIR'] = Path(config_data['LOG_DIR'])
+                    for key in ['SETTINGS_FILE', 'LOG_DIR']:
+                        if key in config_data:
+                            config_data[key] = Path(config_data[key])
                     return cls(**config_data)
         except (json.JSONDecodeError, TypeError) as e:
             logging.error(f"Error loading config: {e}")
@@ -38,10 +36,9 @@ class AppConfig:
         try:
             config_path.parent.mkdir(parents=True, exist_ok=True)
             with open(config_path, 'w', encoding='utf-8') as f:
-                # Convert Path objects to strings for JSON serialization
                 config_dict = asdict(self)
-                config_dict['SETTINGS_FILE'] = str(self.SETTINGS_FILE)
-                config_dict['LOG_DIR'] = str(self.LOG_DIR)
+                for key in ['SETTINGS_FILE', 'LOG_DIR']:
+                    config_dict[key] = str(config_dict[key])
                 json.dump(config_dict, f, indent=4)
         except Exception as e:
             logging.error(f"Error saving config: {e}")
@@ -51,14 +48,3 @@ class AppConfig:
         """Update log level from command line argument"""
         if cli_log_level is not None:
             self.LOG_LEVEL = cli_log_level
-            
-    def validate(self) -> None:
-        """Validate configuration values"""
-        if self.DEFAULT_DELAY_MIN < 0:
-            raise ValueError("DEFAULT_DELAY_MIN must be non-negative")
-        if self.DEFAULT_DELAY_MAX < self.DEFAULT_DELAY_MIN:
-            raise ValueError("DEFAULT_DELAY_MAX must be greater than DEFAULT_DELAY_MIN")
-        if self.RETRY_ATTEMPTS < 1:
-            raise ValueError("RETRY_ATTEMPTS must be positive")
-        if self.DOWNLOAD_CHUNK_SIZE < 1:
-            raise ValueError("DOWNLOAD_CHUNK_SIZE must be positive")

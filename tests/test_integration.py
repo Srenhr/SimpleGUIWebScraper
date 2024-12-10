@@ -1,12 +1,10 @@
 # tests/test_integration.py
 import pytest
 import asyncio
-import PySimpleGUI as sg
 from pathlib import Path
 from unittest.mock import Mock, patch
 from src.ui.scraper_gui import WebScraperGUI
 from src.core.scraper_service import ScraperService
-from src.core.file_downloader import download_files
 from src.config import AppConfig
 
 @pytest.fixture
@@ -75,3 +73,19 @@ class TestIntegration:
                 values = {"-URL-": "http://example.com", "-FILETYPE-": ".pdf"}
                 await gui.handle_search(values)
                 assert mock_popup.called
+
+    @pytest.mark.asyncio
+    async def test_search_retry_logic(self, config, mock_window):
+        gui = WebScraperGUI(config)
+        
+        # Mock search results with retry logic
+        with patch.object(ScraperService, 'fetch_files', side_effect=[Exception("Test error"), ["http://example.com/test1.pdf"] ]):
+            values = {
+                "-URL-": "http://example.com",
+                "-FILETYPE-": ".pdf",
+                "-OUTPUT-": str(Path("downloads")),
+                "-FILELIST-": [0]  # Select first file
+            }
+            
+            await gui.handle_search(values)
+            assert mock_window["-FILELIST-"].update.called

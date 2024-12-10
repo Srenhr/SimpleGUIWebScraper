@@ -1,9 +1,7 @@
-# src/core/browser_manager.py
 import logging
 import platform
 import winreg
 import time
-from pathlib import Path
 from typing import Optional
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
@@ -12,8 +10,7 @@ from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.common.exceptions import WebDriverException
 from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.firefox import GeckoDriverManager
-from .exceptions import BrowserConnectionError
-
+from ..utils.exceptions import BrowserConnectionError
 from ..config import AppConfig
 
 class BrowserManager:

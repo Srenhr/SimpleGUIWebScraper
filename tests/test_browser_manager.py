@@ -1,10 +1,9 @@
-# tests/test_browser_manager.py
 import pytest
 from unittest.mock import Mock, patch
 from selenium.common.exceptions import WebDriverException
 from src.core.browser_manager import BrowserManager
 from src.config import AppConfig
-from src.core.exceptions import BrowserError
+from src.utils.exceptions import BrowserError
 
 @pytest.fixture
 def config():
@@ -30,6 +29,17 @@ class TestBrowserManager:
     def test_ensure_driver_retry_success(self, browser_manager, mock_webdriver):
         browser_manager.driver = Mock()
         browser_manager.driver.title.side_effect = [
+            WebDriverException("Failed"),
+            None  # Success on second try
+        ]
+        
+        driver = browser_manager._ensure_driver()
+        assert driver is not None
+        assert browser_manager.driver.quit.call_count == 1
+
+    def test_ensure_driver_retry_logic(self, browser_manager, mock_webdriver):
+        browser_manager.driver = Mock()
+        browser_manager.driver.current_url.side_effect = [
             WebDriverException("Failed"),
             None  # Success on second try
         ]

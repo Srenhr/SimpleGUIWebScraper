@@ -1,12 +1,11 @@
 # tests/test_scraper_service.py
 import pytest
 import responses
-from pathlib import Path
 from bs4 import BeautifulSoup
 from src.core.scraper_service import ScraperService
 from src.core.browser_manager import BrowserManager
 from src.config import AppConfig
-from src.core.exceptions import ScraperError
+from src.utils.exceptions import ScraperError
 
 @pytest.fixture
 def config():
@@ -71,6 +70,28 @@ class TestScraperService:
         # Execute & Assert
         with pytest.raises(ScraperError, match="Failed to fetch URL"):
             scraper_service.fetch_files(url, [".pdf"])
+
+    @responses.activate
+    def test_fetch_files_retry_logic(self, scraper_service):
+        # Setup
+        url = "http://test.com"
+        responses.add(
+            responses.GET,
+            url,
+            status=500
+        )
+        responses.add(
+            responses.GET,
+            url,
+            body="<html></html>",
+            status=200
+        )
+
+        # Execute
+        files = scraper_service.fetch_files(url, [".pdf"])
+
+        # Assert
+        assert files == []
 
     def test_extract_files(self, scraper_service, sample_html):
         # Setup

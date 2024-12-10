@@ -2,7 +2,6 @@
 import asyncio
 import logging
 from dataclasses import dataclass
-from typing import Callable, Optional
 import PySimpleGUI as sg
 
 @dataclass

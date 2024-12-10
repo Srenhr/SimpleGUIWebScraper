@@ -1,5 +1,9 @@
-# src/core/exceptions.py
+import logging
 from typing import Optional
+
+def log_and_raise(logger, message, exception_class, original_exception=None):
+    logger.error(message, exc_info=True)
+    raise exception_class(message) from original_exception
 
 class WebScraperError(Exception):
     """Base exception for web scraper errors"""

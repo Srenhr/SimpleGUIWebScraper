@@ -1,13 +1,12 @@
-# src/core/scraper_service.py
 import aiohttp
 import asyncio
 import logging
 from typing import List, Set, Optional
 from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
-from .exceptions import WebScraperError, ScraperError, URLError, ParsingError
-from .browser_manager import BrowserManager
+from ..utils.exceptions import log_and_raise, WebScraperError, ScraperError, URLError, ParsingError
 from ..config import AppConfig
+from .browser_manager import BrowserManager
 
 class ScraperService:
     def __init__(self, config: AppConfig, browser_manager: BrowserManager):
@@ -86,7 +85,7 @@ class ScraperService:
                         f"failed, retrying in {delay}s: {e}"
                     )
                     if attempt == self.config.RETRY_ATTEMPTS - 1:
-                        raise URLError(f"Failed to fetch URL {url}", e)
+                        log_and_raise(self.logger, f"Failed to fetch URL {url}", URLError, e)
                     await asyncio.sleep(delay)
                     
                 except asyncio.TimeoutError as e:
@@ -96,13 +95,13 @@ class ScraperService:
                         f"retrying in {delay}s: {e}"
                     )
                     if attempt == self.config.RETRY_ATTEMPTS - 1:
-                        raise URLError(f"Timeout fetching URL {url}", e)
+                        log_and_raise(self.logger, f"Timeout fetching URL {url}", URLError, e)
                     await asyncio.sleep(delay)
 
         except WebScraperError:
             raise
         except Exception as e:
-            raise ScraperError(f"Unexpected error scraping {url}", e)
+            log_and_raise(self.logger, f"Unexpected error scraping {url}", ScraperError, e)
 
     def _extract_files(self, soup: BeautifulSoup, base_url: str, file_types: List[str]) -> List[str]:
         """Extract files with validation"""

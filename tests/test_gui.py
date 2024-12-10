@@ -1,9 +1,8 @@
-# tests/test_gui.py
 import pytest
-import PySimpleGUI as sg
-from pathlib import Path
+from unittest.mock import patch
 from src.ui.scraper_gui import WebScraperGUI
 from src.config import AppConfig
+from src.core.scraper_service import ScraperService
 
 @pytest.fixture
 def config():
@@ -39,3 +38,11 @@ class TestWebScraperGUI:
         values = {"-FILELIST-": []}
         await gui.handle_show_in_browser(values)
         # Should handle no selection gracefully
+
+    @pytest.mark.asyncio
+    async def test_handle_search_retry_logic(self, gui):
+        values = {"-URL-": "http://example.com", "-FILETYPE-": ".pdf"}
+        
+        with patch.object(ScraperService, 'fetch_files', side_effect=[Exception("Test error"), ["http://example.com/test1.pdf"]]):
+            await gui.handle_search(values)
+            # Should retry and eventually succeed

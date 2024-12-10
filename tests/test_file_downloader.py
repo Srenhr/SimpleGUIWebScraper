@@ -2,10 +2,10 @@
 import pytest
 import aiohttp
 from pathlib import Path
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import patch, AsyncMock
 from src.core.download_manager import DownloadManager
 from src.config import AppConfig
-from src.core.exceptions import DownloaderError
+from src.utils.exceptions import DownloaderError
 
 @pytest.fixture
 def config():
@@ -94,3 +94,16 @@ class TestDownloadManager:
 
         assert len(results) == len(urls)
         assert all(isinstance(r, Path) for r in results)
+
+    @pytest.mark.asyncio
+    async def test_download_file_retry_logic(self, download_manager, tmp_path):
+        url = "http://example.com/test.pdf"
+        
+        with patch("aiohttp.ClientSession") as mock_session:
+            mock_session.return_value.__aenter__.return_value.get.side_effect = [
+                aiohttp.ClientError(),  # First attempt fails
+                AsyncMock()  # Second attempt succeeds
+            ]
+            
+            result = await download_manager.download_file(url, tmp_path)
+            assert result == tmp_path / "test.pdf"

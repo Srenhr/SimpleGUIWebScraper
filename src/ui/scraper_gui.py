@@ -1,17 +1,15 @@
-# src/ui/scraper_gui.py
 import asyncio
 import logging
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 import PySimpleGUI as sg
 from selenium.webdriver.common.by import By
-
 from ..config import AppConfig
 from ..core.browser_manager import BrowserManager
 from ..core.scraper_service import ScraperService
 from ..core.download_manager import DownloadManager
-from ..core.exceptions import WebScraperError, BrowserError, ScraperError, DownloaderError
 from ..utils.settings_manager import save_settings, load_settings
+from ..utils.exceptions import log_and_raise, BrowserError, ScraperError, DownloaderError
 from .progress_popup import create_progress_popup
 
 class WebScraperGUI:
@@ -68,11 +66,11 @@ class WebScraperGUI:
             self.window["-FILELIST-"].update(file_data)
 
         except ScraperError as e:
-            self.logger.error(f"Scraping error: {e}", exc_info=True)
+            log_and_raise(self.logger, f"Scraping error: {e}", ScraperError, e)
             sg.popup_error(f"Error during search: {str(e)}")
             self.window["-FILELIST-"].update([["Error occurred"]])
         except Exception as e:
-            self.logger.error(f"Unexpected error during search: {e}", exc_info=True)
+            log_and_raise(self.logger, f"Unexpected error during search: {e}", Exception, e)
             sg.popup_error(f"An unexpected error occurred: {str(e)}")
             self.window["-FILELIST-"].update([["Error occurred"]])
 
@@ -99,10 +97,10 @@ class WebScraperGUI:
             await progress.wait_for_close()
 
         except DownloaderError as e:
-            self.logger.error(f"Download error: {e}", exc_info=True)
+            log_and_raise(self.logger, f"Download error: {e}", DownloaderError, e)
             sg.popup_error(f"Error during download: {str(e)}")
         except Exception as e:
-            self.logger.error(f"Unexpected error during download: {e}", exc_info=True)
+            log_and_raise(self.logger, f"Unexpected error during download: {e}", Exception, e)
             sg.popup_error(f"An unexpected error occurred: {str(e)}")
 
     async def handle_show_in_browser(self, values: Dict[str, Any]) -> None:
@@ -118,11 +116,11 @@ class WebScraperGUI:
             element = driver.find_element(By.PARTIAL_LINK_TEXT, Path(selected_file).name)
             driver.execute_script("arguments[0].style.border='3px solid red'", element)
         except BrowserError as e:
-            self.logger.error(f"Browser error: {e}", exc_info=True)
+            log_and_raise(self.logger, f"Browser error: {e}", BrowserError, e)
             sg.popup_error(f"Browser error: {str(e)}")
             self.browser_manager.cleanup()
         except Exception as e:
-            self.logger.error(f"Unexpected error in browser: {e}", exc_info=True)
+            log_and_raise(self.logger, f"Unexpected error in browser: {e}", Exception, e)
             sg.popup_error(f"An unexpected error occurred: {str(e)}")
             self.browser_manager.cleanup()
 
